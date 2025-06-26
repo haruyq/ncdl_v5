@@ -1,6 +1,7 @@
 from module.logger import Log
 from module.extension import Extension
 from module.downloader import Downloader
+from module.updater import AutoUpdater
 
 try:
     import os
@@ -15,7 +16,24 @@ except ModuleNotFoundError:
     Log.Info("Module installed! Restarting...")
     os.execv(sys.executable, ['python'] + sys.argv)
 
+__version__ = "0.2.0"
+
 def main():
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            _config = json.load(f)
+            _auto_update = _config.get("auto_update", False)
+    except (FileNotFoundError, json.JSONDecodeError):
+        _auto_update = False
+
+    if _auto_update:
+        try:
+            success = AutoUpdater.check_updates(__version__)
+            if success:
+                AutoUpdater.update()
+        except Exception as e:
+            Log.Error(f"Error: {str(e)}")
+
     Extension.clear_screen()
     print("""\033[36m                                                               
                                                                
@@ -44,6 +62,7 @@ def main():
             exit()
 
         Extension.clear_screen()
+
         if mode == "1":
             mode = input("Mode(mp3 or mp4) >> ")
 
