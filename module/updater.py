@@ -10,70 +10,69 @@ LATEST = "https://api.github.com/repos/haruyq/ncdl_v5/releases/latest"
 
 class AutoUpdater:
     @staticmethod
-    def check_updates(curr_version: str) -> tuple:
-        """
-        GithubのAPIから最新バージョンがあるか確認する関数
-        """
+    def check_and_update(curr_version: str):
         try:
+            Log.Info("Checking for updates...")
             response = requests.get(LATEST)
             response.raise_for_status()
-            if response.status_code == 200:
-                github_data = response.json()
-                latest_version = github_data["tag_name"]
-                if str(latest_version).lstrip('v') != curr_version:
-                    return True
-                else:
-                    return False
-            
-            else:
+
+            latest_release = response.json()
+            latest_version = latest_release.get("tag_name", "v0.0.0").lstrip('v')
+
+            Log.Info(f"Current version: {curr_version}, Latest version: {latest_version}")
+
+            if latest_version == curr_version:
                 return
-        
-        except Exception as e:
-            Log.Error("Update Error: \n" + e)
-    
-    @staticmethod
-    def update():
-        """
-        自動アップデートを行う関数
-        """
-        try:
-            response = requests.get(LATEST)
-            response.raise_for_status()
-            if response.status_code == 200:
-                latest_release = response.json()
-                download_url = latest_release["assets"][0]["browser_download_url"]
 
-                Log.Info("Update Download: " + download_url)
-                zip_response = requests.get(download_url, stream=True)
-                zip_response.raise_for_status()
-
-                with zipfile.ZipFile(io.BytesIO(zip_response.content)) as z:
-                    root_dir = z.namelist()[0]
-                    temp_extract_path = "temp_update"
-                    z.extractall(temp_extract_path)
-
-                source_path = os.path.join(temp_extract_path, root_dir)
-                for item in os.listdir(source_path):
-                    s = os.path.join(source_path, item)
-                    d = os.path.join(os.getcwd(), item)
-                    if os.path.isdir(s):
-                        if os.path.exists(d):
-                            shutil.rmtree(d)
-                        shutil.copytree(s, d)
-                    else:
-                        shutil.copy2(s, d)
-                
-                shutil.rmtree(temp_extract_path)
-
-                if os.path.exists("requirements.txt"):
-                    Log.Info("Update: requirements.txt")
-                    os.system(f"{sys.executable} -m pip install --upgrade --force-reinstall -r requirements.txt")
-
-                Log.Info("Update completed. restarting...")
-                os.execv(sys.executable, ['python'] + sys.argv)
-            else:
-                return False
+            Log.Info("New version found. Starting update...")
             
+            assets = latest_release.get("assets", [])
+            if not assets:
+                Log.Error("No assets found in the latest release.")
+                return
+            download_url = assets[0].get("browser_download_url")
+
+            Log.Info(f"Downloading update from: {download_url}")
+            zip_response = requests.get(download_url, stream=True)
+            zip_response.raise_for_status()
+
+            temp_extract_path = "temp_update"
+            if os.path.exists(temp_extract_path):
+                shutil.rmtree(temp_extract_path)
+            
+            Log.Info("Extracting update file...")
+            with zipfile.ZipFile(io.BytesIO(zip_response.content)) as z:
+                root_dir = z.namelist()[0]
+                z.extractall(temp_extract_path)
+
+            source_path = os.path.join(temp_extract_path, root_dir)
+            Log.Info(f"Copying files from: {source_path}")
+
+            for item in os.listdir(source_path):
+                s = os.path.join(source_path, item)
+                d = os.path.join(os.getcwd(), item)
+                
+                Log.Debug(f"Copying '{s}' to '{d}'", True)
+
+                if os.path.isdir(s):
+                    if os.path.exists(d):
+                        shutil.rmtree(d)
+                    shutil.copytree(s, d)
+                else:
+                    shutil.copy2(s, d)
+            
+            shutil.rmtree(temp_extract_path)
+            Log.Info("Files updated successfully.")
+
+            if os.path.exists("requirements.txt"):
+                Log.Info("Updating requirements...")
+                os.system(f"{sys.executable} -m pip install --upgrade -r requirements.txt")
+
+            Log.Info("Update complete. Restarting application...")
+            os.execv(sys.executable, ['python'] + sys.argv)
+        
+        except requests.exceptions.RequestException as e:
+            Log.Error(f"Update check failed (network error): {e}")
         except Exception as e:
-            Log.Error("Update Error: \n" + e)
-            return False
+            Log.Error(f"An unexpected error occurred during the update process: {e}")
+            input("Press Enter to continue...")

@@ -16,7 +16,7 @@ except ModuleNotFoundError:
     Log.Info("Module installed! Restarting...")
     os.execv(sys.executable, ['python'] + sys.argv)
 
-__version__ = "0.1.1"
+__version__ = "0.1.2"
 
 def main():
     try:
@@ -27,12 +27,7 @@ def main():
         _auto_update = False
 
     if _auto_update:
-        try:
-            success = AutoUpdater.check_updates(__version__)
-            if success:
-                AutoUpdater.update()
-        except Exception as e:
-            Log.Error(f"Error: {str(e)}")
+        AutoUpdater.check_and_update(__version__)
 
     Extension.clear_screen()
     print("""\033[36m                                                               
