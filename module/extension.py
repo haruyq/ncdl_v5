@@ -2,12 +2,14 @@ import os
 import subprocess
 
 class Extension:
+    @staticmethod
     def clear_screen():
         if os.name == 'posix':
             _ = os.system('clear')
         else:
             _ = os.system('cls')
 
+    @staticmethod
     def convert(input_file, output_file, codec=None, bitrate=None, extra_args=None):
         """
         FFmpegを使って音声ファイルを変換する関数

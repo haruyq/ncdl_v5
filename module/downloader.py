@@ -17,6 +17,15 @@ import random
 import subprocess
 
 class Downloader:
+    try:
+        with open("config.json", "r", encoding="utf-8") as f:
+            _config = json.load(f)
+        _use_cookie = _config.get("login", False)
+    except (FileNotFoundError, json.JSONDecodeError):
+        _use_cookie = False
+
+    _cookie_file = os.path.join(os.getcwd(), "cookie", "cookies.txt")
+
     @staticmethod
     def video_info(url: str) -> str:
         ydl_opts = {
@@ -26,6 +35,12 @@ class Downloader:
             'noplaylist': True
         }
         
+        if Downloader._use_cookie and ("youtube.com" in url or "youtu.be" in url):
+            if os.path.exists(Downloader._cookie_file):
+                ydl_opts['cookiefile'] = Downloader._cookie_file
+            else:
+                Log.Info(f"Cookie file not found: {Downloader._cookie_file}")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             v_info = ydl.extract_info(url, download=False)
             title = v_info.get('title', 'Unknown Title')
@@ -139,6 +154,12 @@ class Downloader:
                 "extract_flat": False
             }
         
+        if Downloader._use_cookie and ("youtube.com" in url or "youtu.be" in url):
+            if os.path.exists(Downloader._cookie_file):
+                ydl_opts['cookiefile'] = Downloader._cookie_file
+            else:
+                Log.Info(f"Cookie file not found: {Downloader._cookie_file}")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 ydl.download([url])
@@ -164,6 +185,12 @@ class Downloader:
             ],
         }
         
+        if Downloader._use_cookie and ("youtube.com" in url or "youtu.be" in url):
+            if os.path.exists(Downloader._cookie_file):
+                ydl_opts['cookiefile'] = Downloader._cookie_file
+            else:
+                Log.Info(f"Cookie file not found: {Downloader._cookie_file}")
+
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             try:
                 ydl.download([url])
