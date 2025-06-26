@@ -16,7 +16,7 @@ except ModuleNotFoundError:
     Log.Info("Module installed! Restarting...")
     os.execv(sys.executable, ['python'] + sys.argv)
 
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 def main():
     try:

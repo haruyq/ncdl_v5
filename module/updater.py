@@ -6,14 +6,14 @@ import shutil
 import sys
 from module.logger import Log
 
-LATEST = "https://api.github.com/repos/haruyq/ncdl_v5/releases/latest"
+GITHUB_API_URL = "https://api.github.com/repos/haruyq/ncdl_v5/releases/latest"
 
 class AutoUpdater:
     @staticmethod
     def check_and_update(curr_version: str):
         try:
             Log.Info("Checking for updates...")
-            response = requests.get(LATEST)
+            response = requests.get(GITHUB_API_URL)
             response.raise_for_status()
 
             latest_release = response.json()
@@ -21,7 +21,7 @@ class AutoUpdater:
 
             Log.Info(f"Current version: {curr_version}, Latest version: {latest_version}")
 
-            if latest_version == curr_version:
+            if tuple(map(int, curr_version.split('.'))) >= tuple(map(int, latest_version.split('.'))):
                 return
 
             Log.Info("New version found. Starting update...")
@@ -42,18 +42,19 @@ class AutoUpdater:
             
             Log.Info("Extracting update file...")
             with zipfile.ZipFile(io.BytesIO(zip_response.content)) as z:
-                root_dir = z.namelist()[0]
                 z.extractall(temp_extract_path)
 
-            source_path = os.path.join(temp_extract_path, root_dir)
-            Log.Info(f"Copying files from: {source_path}")
+            source_path = temp_extract_path
+            extracted_items = os.listdir(temp_extract_path)
+            if len(extracted_items) == 1 and os.path.isdir(os.path.join(temp_extract_path, extracted_items[0])):
+                source_path = os.path.join(temp_extract_path, extracted_items[0])
+                Log.Info(f"Detected nested folder. Using source: {source_path}")
 
+            Log.Info(f"Copying files from: {source_path}")
             for item in os.listdir(source_path):
                 s = os.path.join(source_path, item)
                 d = os.path.join(os.getcwd(), item)
                 
-                Log.Debug(f"Copying '{s}' to '{d}'", True)
-
                 if os.path.isdir(s):
                     if os.path.exists(d):
                         shutil.rmtree(d)
@@ -66,7 +67,7 @@ class AutoUpdater:
 
             if os.path.exists("requirements.txt"):
                 Log.Info("Updating requirements...")
-                os.system(f"{sys.executable} -m pip install --upgrade -r requirements.txt")
+                os.system(f'"{sys.executable}" -m pip install --upgrade -r requirements.txt')
 
             Log.Info("Update complete. Restarting application...")
             os.execv(sys.executable, ['python'] + sys.argv)
@@ -74,5 +75,5 @@ class AutoUpdater:
         except requests.exceptions.RequestException as e:
             Log.Error(f"Update check failed (network error): {e}")
         except Exception as e:
-            Log.Error(f"An unexpected error occurred during the update process: {e}")
+            Log.Error(f"An unexpected error occurred during the update process: {e}", exc_info=True)
             input("Press Enter to continue...")
